@@ -1,0 +1,159 @@
+{
+  "proxy": "http://127.0.0.1:7897",
+  "proxy_switch_url": "",
+  "proxy_rotate_on_block": true,
+  "proxy_switch": {
+    "url": "http://127.0.0.1:9097",
+    "secret": "",
+    "group": "",
+    "nodes": []
+  },
+  "geos": "all",
+  "retention_days": 90,
+  "llm": {
+    "enabled": true,
+    "api_key": "PASTE_YOUR_KEY_HERE",
+    "base_url": "https://open.bigmodel.cn/api/paas/v4",
+    "model": "glm-4-flash"
+  },
+  "games": {
+    "enabled": true,
+    "sources": "steam,appstore,trending",
+    "interval_hours": 3,
+    "max_chart": 6,
+    "max_refresh": 6,
+    "refresh_hours": 12,
+    "throttle": 10.0,
+    "history_days": 7
+  },
+  "gameradar": {
+    "enabled": true,
+    "sources": "itch,itch-popular,itch-new-feed,itch-featured-feed,crazygames,poki,y8,gamepix,lagged,newgrounds",
+    "interval_hours": 3,
+    "throttle": 1.0
+  },
+  "capcut": {
+    "enabled": true,
+    "interval_hours": 4,
+    "template_types": ["video"],
+    "max_pages": 12,
+    "throttle": 1.5,
+    "history_days": 3
+  },
+  "youtube": {
+    "enabled": true,
+    "api_key": "",
+    "budget": 3,
+    "throttle": 1.0,
+    "max_age_hours": 72
+  },
+  "opportunity": {
+    "enabled": true
+  },
+  "social": {
+    "enabled": true,
+    "budget": 5,
+    "max_age_hours": 6,
+    "min_platforms": 2,
+    "throttle": 0.5,
+    "timeout_ms": 20000,
+    "reddit_client_id": "",
+    "reddit_client_secret": "",
+    "reddit_user_agent": "trendradar/1.0",
+    "x_bearer_token": "",
+    "tiktok_research_token": ""
+  },
+  "seo": {
+    "enabled": true,
+    "serp_budget": 20,
+    "suggest_budget": 20,
+    "serp_throttle": 3.0,
+    "geo": "US",
+    "refresh_hours": 24,
+    "cache_days": 7
+  },
+  "fast": {
+    "enabled": true
+  },
+  "related": {
+    "enabled": false,
+    "budget": 20,
+    "min_stars": 0,
+    "window": "now 7-d",
+    "throttle": 4.0
+  },
+  "signal": {
+    "enabled": true,
+    "baseline": "gpts",
+    "anchors": { "generic": "gpts", "wiki": "steam", "online": "crazy games" },
+    "windows": { "7d": "now 7-d", "30d": "today 1-m", "90d": "today 3-m" },
+    "budget": 20,
+    "gameradar_budget": 8,
+    "throttle": 4.0,
+    "breakout_ratio": 5.0,
+    "rising_ratio": 1.0,
+    "recent_hours": 0
+  },
+  "sitemap": {
+    "enabled": true,
+    "interval_hours": 24,
+    "watch_urls": [
+      "https://itch.io/sitemaps/games.xml",
+      "https://www.silvergames.com/sitemap-games-1.xml",
+      "https://www.addictinggames.com/sitemap.xml"
+    ],
+    "throttle": 1.0,
+    "budget": 2000,
+    "max_sitemaps": 30,
+    "min_words": 1,
+    "max_llm": 120
+  },
+  "advice": {
+    "enabled": true,
+    "budget": 20,
+    "seo_budget": 20,
+    "gameradar_seo_budget": 8,
+    "ttl_days": 7,
+    "batch": 8,
+    "workers": 6,
+    "weights": { "demand": 0.35, "competition": 0.40, "window": 0.25 }
+  },
+  "discover": {
+    "enabled": false,
+    "interval_hours": 24,
+    "throttle": 0.5,
+    "budget": 500,
+    "max_llm": 250,
+    "seeds": [
+      "best ai", "ai tool for", "best ai tool for", "free ai", "ai for",
+      "chatgpt vs", "ai vs", "how to use ai", "chatgpt", "claude",
+      "gemini", "midjourney", "perplexity", "stable diffusion", "notion ai",
+      "best credit card", "best credit card for", "how to invest", "how to invest in",
+      "how to save", "how to budget", "best savings", "high yield", "how to file tax",
+      "best cd", "best index fund", "etf vs", "mortgage", "crypto", "how to buy"
+    ]
+  },
+  "push": {
+    "enabled": false,
+    "daily_at_hour": [5, 17],
+    "quiet_hours": "23-8",
+    "min_stars": 3,
+    "top_gameradar": 5,
+    "top_sitemap": 5,
+    "urgent": {
+      "enabled": true,
+      "ignore_quiet": false,
+      "gameradar": ["independent"],
+      "gameradar_test_score": 70,
+      "social": ["viral"],
+      "game_breakout": true,
+      "sitemap_7d": 3,
+      "trend_breakout_stars": 4
+    },
+    "wecom_webhook": "",
+    "dingtalk_webhook": "",
+    "dingtalk_secret": "",
+    "telegram_bot_token": "",
+    "telegram_chat_id": ""
+  }
+}

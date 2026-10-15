@@ -1,0 +1,16 @@
+# Local secrets (LLM key, YouTube key, webhooks) — never commit
+config.local.json
+config.action.json
+
+# Runtime state, caches and logs
+state/
+logs/
+
+# Local screenshots (not part of the project)
+截图/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/

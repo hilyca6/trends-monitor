@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TrendRadar — 全球热词雷达</title>
+<meta name="description" content="每小时更新：多国 Google 上升热搜词、7 天历史留档、新游戏热度雷达。" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>" />
+<link rel="stylesheet" href="style.css?v=9" />
+</head>
+<body>
+<header>
+  <div class="brand-row">
+    <div>
+      <h1>TrendRadar</h1>
+      <p class="tagline">全球热词 · 新游戏雷达 · 每小时更新</p>
+    </div>
+    <div class="legend-wrap">
+      <button id="legend-btn">❓ 图标说明</button>
+      <div id="legend" class="legend" hidden>
+        <div class="legend-row"><span class="stars">★★★★☆</span><span>推荐指数 = 值不值得做（需求×竞争×窗口）</span></div>
+        <div class="legend-row"><span class="tag rt">🆕 新</span><span>本轮首次出现</span></div>
+        <div class="legend-row"><span class="tag sig-hot">🚀 爆发</span><span>相对基准词（gpts）曲棍球杆式上涨</span></div>
+        <div class="legend-row"><span class="tag sig-new">🆕 新词</span><span>90 天内前段无量、近期才起量</span></div>
+        <div class="legend-row"><span class="tag sig-ratio">×N 基准</span><span>近 7 天热度是基准词的 N 倍（同一请求归一）</span></div>
+        <div class="legend-row"><span class="tag sig-conflict">⚠️ 实体冲突</span><span>老词，且限定词热度远低于主词，主词热度可能来自其他实体</span></div>
+        <div class="legend-row"><span class="tag fast-badge">🔥 搜索新增 N</span><span>本轮相比基线，谷歌补全长尾 + SERP 新增页面数（快速热度层）</span></div>
+        <div class="legend-row"><span class="tag hot">🔥 爆发中</span><span>涨幅≥500% 或 环比翻倍</span></div>
+        <div class="legend-row"><span class="tag web">🌐 网页游戏</span><span>以 .app / .io 等结尾的网页游戏</span></div>
+        <div class="legend-row"><span class="tag noise">🔇 比赛</span><span>被标记为噪音，可"隐藏噪音"过滤</span></div>
+      </div>
+    </div>
+  </div>
+  <nav id="tabs">
+    <button data-tab="trends" class="on">🌍 全球热点</button>
+    <button data-tab="sitemap">🚀 站点信号</button>
+    <button data-tab="games">🎮 新游戏</button>
+    <button data-tab="gameradar">🎯 游戏雷达</button>
+    <button data-tab="capcut">✂️ CapCut</button>
+  </nav>
+</header>
+
+<main>
+  <section id="panel-trends">
+    <div class="bar" id="view-bar">
+      <button data-view="live" class="on">当前热门</button>
+      <button data-view="history">7 天历史</button>
+      <span class="group" id="sort-bar">
+        <button data-sort="vol" class="on">按搜索量</button>
+        <button data-sort="stars">按★星级</button>
+        <button data-sort="signal">按信号</button>
+      </span>
+      <span class="meta" id="updated"></span>
+    </div>
+    <div class="bar scroll-x" id="geo-bar"></div>
+    <div class="bar scroll-x" id="cat-bar"></div>
+    <div class="bar" id="num-bar">
+      <span class="group" id="vol-bar"></span>
+      <span class="group" id="growth-bar"></span>
+      <button id="hot-btn">🔥 只看爆发/新词</button>
+      <button id="noise-btn">🔇 隐藏噪音</button>
+    </div>
+    <div id="trend-table"></div>
+  </section>
+
+  <section id="panel-sitemap" hidden>
+    <p class="hint">
+      监控竞争站的 <b>Sitemap</b>：当某个词被越来越多独立域名收录，说明站长已经在提前布局
+      （领先于流量数据）。按「收录站点数 + 近 7 日新增」排序。数据源在 <code>sitemap.watch_urls</code> 配置。
+    </p>
+    <div class="bar">
+      <span class="meta" id="sitemap-updated"></span>
+      <button id="sitemap-noise-btn">🔇 隐藏噪音</button>
+    </div>
+    <div class="bar scroll-x" id="sitemap-cat-bar"></div>
+    <div id="sitemap-table"></div>
+  </section>
+
+  <section id="panel-games" hidden>
+    <p class="hint">
+      最近被大量搜索的新游戏。曲线是该游戏<b>被发现时点</b>的 7 天搜索热度快照
+      (相对值)——看最新走势请点「查看趋势」。
+    </p>
+    <div class="bar">
+      <span class="group" id="games-sub-bar">
+        <button data-gsub="trending-google" class="on">🔥 热度·原始曲线</button>
+        <button data-gsub="trending-self">🔥 热度·自建7天</button>
+        <button data-gsub="listed-google">🆕 榜单·原始曲线</button>
+        <button data-gsub="listed-self">🆕 榜单·自建7天</button>
+      </span>
+      <span class="meta" id="games-count"></span>
+    </div>
+    <div id="game-cards"></div>
+  </section>
+
+  <section id="panel-gameradar" hidden>
+    <p class="hint">
+      从 itch.io / CrazyGames / Poki / Y8 / GamePix / Lagged / Newgrounds 等
+      <b>网页游戏平台</b>抓取的新游戏名（抢先建站候选）。竞争度与市场来自 Bing SERP，
+      ★为推荐指数——点 ★ 看建议。首次发现的平台信号通常领先于流量数据。
+    </p>
+    <div class="bar">
+      <span class="meta" id="gameradar-updated"></span>
+      <button id="gameradar-noise-btn">🔇 隐藏噪音</button>
+    </div>
+    <div id="gameradar-table"></div>
+  </section>
+
+  <section id="panel-capcut" hidden>
+    <p class="hint">
+      监控 CapCut <b>最常用模板榜</b>（<code>capcut.com/explore/most-used</code>，视频模板）。
+      对比每轮快照，标出<b>使用量新增、排名变化、新进榜</b>的模板——短视频侧的早期趋势信号。
+      使用量取自页面内嵌数据（精确值），优先看新增速率与排名变化。
+    </p>
+    <div class="bar">
+      <span class="meta" id="capcut-updated"></span>
+      <span class="group" id="capcut-sort-bar">
+        <button data-csort="growth3d" class="on">按三天增速</button>
+        <button data-csort="uses">按使用量</button>
+        <button data-csort="delta">按新增</button>
+      </span>
+      <button id="capcut-new-btn">🆕 只看新进榜</button>
+    </div>
+    <div id="capcut-table"></div>
+  </section>
+</main>
+
+<footer>
+  <p>数据每小时自动更新 · 热度指数来自 Google Trends · 多源合成的相对值</p>
+</footer>
+
+<div id="advice-modal" class="modal" hidden>
+  <div class="modal-box">
+    <button class="modal-x" id="advice-close">✕</button>
+    <div id="advice-body"></div>
+  </div>
+</div>
+<script src="app.js?v=9"></script>
+</body>
+</html>

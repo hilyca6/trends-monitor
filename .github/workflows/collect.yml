@@ -1,0 +1,107 @@
+name: TrendRadar collect
+
+# Hourly hot-words + (self-gated) games/sitemap/capcut. Each schedule maps to a
+# stage group so the Google-Trends-heavy stages run in different minutes.
+on:
+  schedule:
+    - cron: "0 * * * *"        # hourly group (collect/seo/signal/advice/fast/social/opportunity/capcut/push)
+    - cron: "20 */3 * * *"     # games group  (games + gameradar)
+    - cron: "40 3 * * *"       # sitemap group
+  workflow_dispatch:
+    inputs:
+      group:
+        description: "stage group"
+        type: choice
+        default: hourly
+        options: [hourly, games, sitemap, all]
+
+# Never let two runs overlap (they share state/ and push to the repo).
+concurrency:
+  group: trendradar
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # to commit state/ + web/data back
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      # config.local.json (proxy / LLM key / etc.) from a repo Secret. If the
+      # secret is unset, defaults apply (works, but Google Trends will be
+      # rate-limited from the datacenter IP — set `proxy` for real data).
+      - name: Write config.local.json
+        env:
+          CONFIG: ${{ secrets.CONFIG_LOCAL_JSON }}
+        run: |
+          if [ -n "$CONFIG" ]; then printf '%s' "$CONFIG" > config.local.json; fi
+
+      - name: Pick stage group
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          DISPATCH: ${{ github.event.inputs.group }}
+        run: |
+          if [ -n "$DISPATCH" ]; then G="$DISPATCH";
+          elif [ "$SCHEDULE" = "20 */3 * * *" ]; then G=games;
+          elif [ "$SCHEDULE" = "40 3 * * *" ]; then G=sitemap;
+          else G=hourly; fi
+          echo "GROUP=$G" >> "$GITHUB_ENV"
+          echo "running group: $G"
+
+      - name: Collect
+        run: python scripts/run_all.py --group "$GROUP" -v
+
+      - name: Upload logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-logs
+          path: logs/run.log
+          if-no-files-found: ignore
+
+      # Persist state + outputs so increments/deltas survive (runners are
+      # ephemeral). state/ is gitignored, so force-add it.
+      - name: Commit data back
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f state web/data
+          if git diff --cached --quiet; then
+            echo "no changes to commit"
+          else
+            git commit -m "chore(data): refresh [skip ci]"
+            git push
+          fi
+
+  # Optional: publish web/ to GitHub Pages. Enable in Settings → Pages →
+  # Source = "GitHub Actions". Delete this job if you serve the site elsewhere
+  # (e.g. Cloudflare Pages building from the repo).
+  deploy:
+    needs: run
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}   # pick up the data commit
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deployment
+        uses: actions/deploy-pages@v4
