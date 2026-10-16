@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import random
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
@@ -188,28 +189,40 @@ def _call_batch(url, headers, model, queries) -> dict:
     return out
 
 
-def _fetch_resilient(url, headers, model, queries, depth: int = 0) -> dict:
-    """Fetch a batch; on HTTP 400 (content filter) split it and retry halves.
+_TRANSIENT_STATUS = {429, 500, 502, 503, 504}
 
-    A single query that still 400s is cached as empty so it isn't retried
-    forever. Transient/other errors return {} (retried on the next run).
+
+def _fetch_resilient(url, headers, model, queries, depth: int = 0, attempts: int = 3) -> dict:
+    """Fetch a batch, retrying transient errors (429/5xx) with backoff.
+
+    HTTP 400 (content filter) splits the batch and retries halves; a single
+    query that still 400s is cached as empty so it isn't retried forever.
+    Persistent/other errors return {} (retried on the next run).
     """
-    try:
-        return _call_batch(url, headers, model, queries)
-    except LLMError as e:
-        if e.status == 400 and len(queries) > 1 and depth < 8:
-            mid = len(queries) // 2
-            out = _fetch_resilient(url, headers, model, queries[:mid], depth + 1)
-            out.update(_fetch_resilient(url, headers, model, queries[mid:], depth + 1))
-            return out
-        if e.status == 400:
-            log.warning("LLM rejected %d query(s), skipping: %s", len(queries), queries[:3])
-            return {q: {"zh": "", "noise": ""} for q in queries}
-        log.warning("LLM batch failed: %s", e)
-        return {}
-    except requests.RequestException as e:  # noqa: BLE001
-        log.warning("LLM request failed: %s", e)
-        return {}
+    for attempt in range(1, attempts + 1):
+        try:
+            return _call_batch(url, headers, model, queries)
+        except LLMError as e:
+            if e.status == 400 and len(queries) > 1 and depth < 8:
+                mid = len(queries) // 2
+                out = _fetch_resilient(url, headers, model, queries[:mid], depth + 1)
+                out.update(_fetch_resilient(url, headers, model, queries[mid:], depth + 1))
+                return out
+            if e.status == 400:
+                log.warning("LLM rejected %d query(s), skipping: %s", len(queries), queries[:3])
+                return {q: {"zh": "", "noise": ""} for q in queries}
+            if e.status in _TRANSIENT_STATUS and attempt < attempts:
+                time.sleep(1.5 * attempt + random.random())
+                continue
+            log.warning("LLM batch failed: %s", e)
+            return {}
+        except requests.RequestException as e:  # noqa: BLE001
+            if attempt < attempts:
+                time.sleep(1.5 * attempt + random.random())
+                continue
+            log.warning("LLM request failed: %s", e)
+            return {}
+    return {}
 
 
 def llm_enrich(

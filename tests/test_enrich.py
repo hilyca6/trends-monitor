@@ -32,6 +32,21 @@ def test_fetch_resilient_transient_error_returns_empty(monkeypatch):
     assert _fetch_resilient("u", {}, "m", ["a", "b"]) == {}
 
 
+def test_fetch_resilient_retries_503_then_succeeds(monkeypatch):
+    calls = {"n": 0}
+
+    def fake(url, headers, model, queries):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise LLMError(503, "overloaded")
+        return {q: {"zh": "ok", "noise": ""} for q in queries}
+
+    monkeypatch.setattr(E, "_call_batch", fake)
+    out = _fetch_resilient("u", {}, "m", ["a"])
+    assert out == {"a": {"zh": "ok", "noise": ""}}
+    assert calls["n"] == 2
+
+
 def test_llm_enrich_skips_rule_noise(monkeypatch, tmp_path):
     items = [
         {"q": "nba scores", "cats": [], "noise": "比赛", "zh": ""},

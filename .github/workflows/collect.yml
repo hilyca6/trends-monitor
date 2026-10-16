@@ -59,6 +59,9 @@ jobs:
           echo "running group: $G"
 
       - name: Collect
+        env:
+          LLM_BATCH: "30"
+          LLM_WORKERS: "4"
         run: python scripts/run_all.py --group "$GROUP" -v
 
       - name: Upload logs (on failure)
