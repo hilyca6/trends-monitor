@@ -242,8 +242,12 @@ def discover(session, sources: list[str]) -> list[dict]:
 
 
 def _heat_value(rec: dict) -> int:
-    """0-100 heat for the history line: our normalized score when charted, else
-    the position on the game's ranked list (0..100, 100 = top)."""
+    """0-100 heat for the history line.
+
+    Priority: our normalized ``score`` when a Trends curve was charted, else the
+    position on the game's ranked list (0..100, 100 = top), else the Google
+    ``growth`` % (mapped to 0..100). Keeps the last value when nothing is known.
+    """
     series = rec.get("series") or []
     score = rec.get("score") or 0
     if series and score:
@@ -251,6 +255,9 @@ def _heat_value(rec: dict) -> int:
     rank, size = rec.get("rank"), rec.get("size")
     if rank and size:
         return round((1.0 - (rank - 1) / size) * 100)
+    growth = rec.get("growth") or 0
+    if growth:
+        return max(1, min(100, round(growth / 10)))
     return int(rec.get("heat") or 0)
 
 

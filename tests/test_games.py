@@ -22,6 +22,12 @@ def test_heat_value_uses_rank_when_uncharted():
     assert _heat_value({"name": "x", "score": 42, "series": [1, 2, 3]}) == 42
 
 
+def test_heat_value_falls_back_to_growth():
+    assert _heat_value({"name": "x", "growth": 1000}) == 100
+    assert _heat_value({"name": "x", "growth": 500}) == 50
+    assert _heat_value({"name": "x", "growth": 0}) == 0
+
+
 def test_export_games_adds_group_and_growth7d():
     state = {"games": {
         "a": {"name": "Trend A", "series": [1, 2, 3], "chart_at": "x", "score": 40,
