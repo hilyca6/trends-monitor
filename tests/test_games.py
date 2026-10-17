@@ -1,5 +1,5 @@
 from collector.games.radar import _heat_value, _record_history
-from collector.games.sources import appstore_new, from_trending_games, steam_new
+from collector.games.sources import appstore_new, from_trending_games, non_game_trending_keys, steam_new
 from collector.games.store import (
     downsample,
     export_games,
@@ -257,6 +257,27 @@ def test_from_trending_games_filters_category_6_and_noise():
     ]}}
     out = from_trending_games(trends)
     assert [c["name"] for c in out] == ["some game"]
+
+
+def test_from_trending_games_drops_people_and_sports_primary():
+    trends = {"items": {"GB": [
+        {"q": "leonna mayor", "cats": [17, 6], "cat": "sports", "entity": "person"},
+        {"q": "everest races", "cats": [17, 6]},
+        {"q": "clara burel", "cats": [17, 6]},
+        {"q": "ps6", "cats": [18, 6], "cat": "gaming", "entity": "product"},
+        {"q": "sporty.io", "cats": [17, 6]},
+    ]}}
+    out = from_trending_games(trends)
+    assert [c["name"] for c in out] == ["ps6", "sporty.io"]
+
+
+def test_non_game_trending_keys_catches_purgeable_terms():
+    trends = {"items": {"GB": [
+        {"q": "Leonna Mayor", "cats": [17, 6], "cat": "sports", "entity": "person"},
+        {"q": "powerball", "cats": [6], "noise": "彩票"},
+        {"q": "ps6", "cats": [18, 6], "cat": "gaming", "entity": "product"},
+    ]}}
+    assert non_game_trending_keys(trends) == {"leonna mayor", "powerball"}
 
 
 def test_from_trending_games_keeps_webgames_and_growth_drops_junk():

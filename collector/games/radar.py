@@ -22,7 +22,7 @@ from ..gtrends_api import BlockedError
 from ..http import build_session
 from ..store import now_iso, save_json
 from .gtrends import GoogleTrendsInterest
-from .sources import appstore_new, from_trending_games, steam_new
+from .sources import appstore_new, from_trending_games, non_game_trending_keys, steam_new
 from .store import (
     downsample,
     export_games,
@@ -42,6 +42,11 @@ DEFAULT_SOURCES = ["steam", "appstore", "trending"]
 
 def _norm(name: str) -> str:
     return " ".join(name.strip().lower().split())
+
+
+def _is_trending_only(rec: dict) -> bool:
+    sources = rec.get("sources") or []
+    return bool(sources) and all(str(s).startswith("trending") for s in sources)
 
 
 def _priority(m: dict) -> int:
@@ -337,6 +342,16 @@ def run(
 
     state = load_games_state(state_path)
     games = state["games"]
+    if "trending" in sources:
+        tp = config.WEB_DATA_DIR / "trends.json"
+        if tp.exists():
+            try:
+                non_games = non_game_trending_keys(json.loads(tp.read_text(encoding="utf-8")))
+                for k in [k for k, r in games.items() if k in non_games and _is_trending_only(r)]:
+                    log.info("purged non-game trend %r", games[k]["name"])
+                    del games[k]
+            except (ValueError, OSError) as e:  # noqa: BLE001
+                log.warning("cannot purge non-game trends: %s", e)
     gt = GoogleTrendsInterest(session, throttle)
     now = now_iso()
 

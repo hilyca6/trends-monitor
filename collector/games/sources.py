@@ -72,13 +72,59 @@ def appstore_new(session: requests.Session, countries: list[str] | None = None) 
     return out
 
 
+# Google Trends primary category 17 = Sports. Horse-racing and match-day
+# queries often carry Games (6) as a secondary category, so they need a
+# dedicated drop rule.
+_SPORTS_CAT = 17
+
+
+def _is_non_game_trend(it: dict, q: str) -> bool:
+    """True when a Google-trending term is clearly not a game.
+
+    Trends tags people and sports news with the Games category sometimes
+    (e.g. ``leonna mayor`` -> ``cats: [17, 6]``). The ``noise`` label catches
+    most of these, but enrichment can lag or fail, so also fall back to the
+    LLM entity/classification and to Google's primary category.
+    """
+    if is_web_game(q):
+        return False
+    cat = it.get("cat")
+    entity = it.get("entity")
+    if entity == "person" and cat != "gaming":
+        return True
+    if cat and cat != "gaming" and entity != "game":
+        return True
+    cats = it.get("cats") or []
+    if cats and cats[0] == _SPORTS_CAT and entity != "game":
+        return True
+    return False
+
+
+def non_game_trending_keys(trends_json: dict, geos: list[str] | None = None) -> set[str]:
+    """Normalized keys of trending terms that are clearly not games.
+
+    Used to purge records that slipped into the games state before the current
+    filters existed (for example ``leonna mayor``).
+    """
+    keys: set[str] = set()
+    for geo, arr in (trends_json.get("items") or {}).items():
+        if geos and geo not in geos:
+            continue
+        for it in arr:
+            q = it["q"]
+            if it.get("noise") or _is_non_game_trend(it, q) or is_junk(q):
+                keys.add(" ".join(q.strip().lower().split()))
+    return keys
+
+
 def from_trending_games(trends_json: dict, geos: list[str] | None = None) -> list[dict]:
     """Games currently trending on Google, from trends.json.
 
     A term qualifies when it is categorised as Games (cat id 6) OR it looks like
     a web game (``foo.app`` / ``foo.io`` / ...), which catches sudden viral
-    browser games that never hit Steam/App Store. Noise-flagged terms and
-    game "content queries" (wordle hints, server status, ...) are dropped.
+    browser games that never hit Steam/App Store. Noise-flagged terms, people /
+    sports news and game "content queries" (wordle hints, server status, ...)
+    are dropped.
 
     Carries through the trend's own ``growth`` and ``zh`` so the radar can rank
     by "sudden rise" without extra API calls.
@@ -93,7 +139,7 @@ def from_trending_games(trends_json: dict, geos: list[str] | None = None) -> lis
             q = it["q"]
             if not (6 in (it.get("cats") or []) or is_web_game(q)):
                 continue
-            if is_junk(q):
+            if _is_non_game_trend(it, q) or is_junk(q):
                 continue
             out.append(
                 {
